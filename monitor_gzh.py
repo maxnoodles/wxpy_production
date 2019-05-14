@@ -12,8 +12,6 @@ import logging
 import yaml
 import logging.config
 from setting import *
-from datetime import datetime, timedelta
-
 
 
 class GzhMessage:
