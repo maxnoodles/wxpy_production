@@ -78,7 +78,7 @@ class GzhMessage:
         logger = logging.getLogger('main.core')
         # 创建一个微信日志处理器
         wechat_handler = WeChatLoggingHandler(receiver=self.bot)
-        wechat_handler.level = 'ERROR'
+        wechat_handler.setLevel(logging.WARN)
         logger.addHandler(wechat_handler)
         return logger
 
@@ -110,8 +110,8 @@ class GzhMessage:
         # 若图片识别结果无活动，返回status=500, None
         # 若接口出错，返回status=400, pic_text=traceback.format_exc()
         if len(img_urls):
+            # self.logger.debug(f'无关键字，开始请求图片,共{len(img_urls)}张')
             status, pic_text = BaiDuOcr().pic_ocr(img_urls)
-            self.logger.debug(f'无关键字，开始请求图片,共{len(img_urls)}张')
             if status == 200:
                 return status, pic_text
             elif status == 500:
@@ -133,11 +133,11 @@ class GzhMessage:
         if len(informer):
             try:
                 ensure_one(informer).send(str(msg))
-                self.logger.debug(f'信息成功向"{informer}"发送成功')
+                self.logger.info(f'信息成功向"{informer}"发送成功,信息:{str(msg)}')
             except ResponseError:
-                self.logger.exception(f'发送失败或者接收人"{informer}"无法接收信息')
+                self.logger.exception(f'发送失败或者接收人"{informer}"无法接收信息, 信息:{str(msg)}')
         else:
-            self.logger.warning(f'找不到"{informer}"信息接收人!')
+            self.logger.warning(f'找不到"{informer}"信息接收人, 信息:{str(msg)}!')
 
     def run(self):
         # 注册公众号消息
@@ -160,13 +160,12 @@ class GzhMessage:
                     # 获取创建时间
                     dic['create_time'] = msg.create_time.strftime('%Y-%m-%d %H:%M:%S')
                     # 输出文章字典信息
-                    self.logger.debug(str(dic))
+                    # self.logger.debug(str(dic))
                     try:
                         # 检测文章标题是否含有关键词
                         if any([keyword in dic['title'] for keyword in self.keywords]):
                             dic['factor'] = f'文章"标题"含有关键词'
-                            # 输出有效信息
-                            self.logger.info(str(dic))
+                            # self.logger.info(str(dic))
                             # 向接受群发送信息
                             self.send_informer(self.informer1, dic)
                             # 向接受人发送信息
@@ -180,7 +179,7 @@ class GzhMessage:
                         if status == 200:
                             dic['factor'] = text
                             # 向信息接收人发送消息
-                            self.logger.info(str(dic))
+                            # self.logger.info(str(dic))
                             self.send_informer(self.informer1, dic)
                             self.send_informer(self.informer2, dic)
                             self.col.update_one({'url': dic['url']}, {'$set': dic}, True)
@@ -188,14 +187,14 @@ class GzhMessage:
                         elif status == 400:
                             dic['Warning'] = '百度云文字识别模块错误'
                             dic['Error'] = text
-                            self.bot.file_helper.send(dic)
+                            # self.bot.file_helper.send(dic)
                             self.logger.error(str(dic))
                         # status返回值为500，则文章没有活动
                         elif status == 500:
-                            self.logger.debug(f'{dic["title"]},text')
+                            self.logger.debug(f'{text}, 信息:{str(dic)}')
                     except Exception as e:
                         # 日记输出错误
-                        self.logger.exception(dic['create_time'])
+                        self.logger.exception()
 
         # 监听测试小号的消息
         @self.bot.register(chats=[Friend])
@@ -232,9 +231,8 @@ class GzhMessage:
 
 if __name__ == '__main__':
     gzh = GzhMessage()
-    gzh.run()
-    # t1 = threading.Thread(target=gzh.run)
-    # t1.start()
+    t1 = threading.Thread(target=gzh.run)
+    t1.start()
 
     listen_thread = None
     for i in threading.enumerate():
@@ -242,11 +240,12 @@ if __name__ == '__main__':
             listen_thread = i
 
     while True:
-        if not listen_thread.is_alive():
+        if not listen_thread.is_alive() or listen_thread is None:
             content = f'公众号监听线程死亡'
             email_test.error_alarm(content)
+            print(content)
             break
-        time.sleep(60)
+        time.sleep(300)
 
 
 

@@ -65,7 +65,7 @@ class BaiDuOcr:
             return 400, traceback.format_exc()
 
         # 若没有识别出活动，返回500
-        no_text = '该文章没有活动'
+        no_text = '该文章图片不含关键词，没有活动'
         return 500, no_text
 
 
