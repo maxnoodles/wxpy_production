@@ -14,9 +14,9 @@ class BaiDuOcr:
 
     def __init__(self):
         # 百度云申请秘钥
-        self.APP_ID = '16167904'
-        self.API_KEY = 'hdt1cGSEvQiG28hphMXnjeSQ'
-        self.SECRET_KEY = 'suHgcApxojkN6H4oIGRGvSuFXXqwFFdt'
+        self.APP_ID = APP_ID
+        self.API_KEY = API_KEY
+        self.SECRET_KEY = SECRET_KEY
         # 百度图像识别ocr接口
         self.client = AipOcr(self.APP_ID, self.API_KEY, self.SECRET_KEY)
         # 通用文字识别参数选项
