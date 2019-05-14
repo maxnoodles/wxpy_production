@@ -2,31 +2,31 @@ import time
 import threading
 from wxpy import *
 import requests
-import re
 import pymongo
 import os
 from baidu_ocr import BaiDuOcr
-import datetime
 from faker import Faker
 import email_test
-import traceback
 from lxml.html import fromstring
 import logging
 import yaml
 import logging.config
 from setting import *
+from datetime import datetime, timedelta
+
 
 
 class GzhMessage:
     """监听微信公众号消息"""
     def __init__(self):
         # 初始化wxpy Bot对象
-        self.bot = Bot(cache_path=True)
+        self.qr_flag = False
+        self.start_time = time.time()
+        self.bot = Bot(cache_path=True, qr_callback=self.qr_callback)
         self.bot.enable_puid('wxpy_puid.pkl')
         # 连接数据库
         self.client = pymongo.MongoClient(host='127.0.0.1')
         self.col = self.client['D88']['gzh_message']
-        # self.ua = UserAgent()
         # 自定义请求头
         self.headers = {
             'Connection': 'keep-alive',
@@ -44,9 +44,21 @@ class GzhMessage:
         self.test_user = self.bot.friends().search('max')
         # 关键词
         self.keywords = KEYWORDS
-
         # 加载日记配置文件
         self.logger = self.setup_logging()
+
+    def qr_callback(self, **kwargs):
+        """获取二维码后将其写入文件再通过邮件发送到登录账号"""
+        send_time = time.time()
+        if not self.qr_flag:
+            qr_path = 'QR.png'
+            with open(qr_path, 'wb') as fp:
+                fp.write(kwargs['qrcode'])
+            email_test.send_qr('QR.png')
+            self.qr_flag = True
+        if send_time - self.start_time > 300:
+            self.start_time = time.time()
+            self.qr_flag = False
 
     def setup_logging(self, default_path='yaml.ini', default_level=logging.INFO):
         """
@@ -222,8 +234,9 @@ class GzhMessage:
 
 if __name__ == '__main__':
     gzh = GzhMessage()
-    t1 = threading.Thread(target=gzh.run)
-    t1.start()
+    gzh.run()
+    # t1 = threading.Thread(target=gzh.run)
+    # t1.start()
 
     listen_thread = None
     for i in threading.enumerate():
@@ -232,9 +245,8 @@ if __name__ == '__main__':
 
     while True:
         if not listen_thread.is_alive():
-            times = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            content = f'{times}: 监听公众号--线程死亡'
-            email_test.my_email(content)
+            content = f'公众号监听线程死亡'
+            email_test.error_alarm(content)
             break
         time.sleep(60)
 
