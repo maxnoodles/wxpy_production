@@ -36,7 +36,7 @@ class BaiDuOcr:
             # self.client.basicGeneralUrl是百度ocr通用文字接口，传入参数为urls和options
             # 因为map只能传入1个参数，这里使用partial偏函数将options传入basicGeneralUrl
             results = thread.map(partial(self.client.basicGeneralUrl, options=self.options), url_lists)
-            # 将结果生成器转化成列表
+        # 将结果生成器转化成列表
         # print(list(results))
 
         i = 0
@@ -61,7 +61,6 @@ class BaiDuOcr:
                                 return 200, text
         except Exception as e:
             # 如果百度云文字识别接口发送错误，返回错误信息
-            traceback.print_exc()
             return 400, traceback.format_exc()
 
         # 若没有识别出活动，返回500

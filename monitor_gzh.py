@@ -37,7 +37,7 @@ class GzhMessage:
         # 信息接收群
         self.informer1 = self.bot.groups().search('洗稿')
         # 信息接收人
-        self.informer2 = self.bot.friends().search('noodles')
+        # self.informer2 = self.bot.friends().search('noodles')
         # 测试小号
         self.test_user = self.bot.friends().search('max')
         # 关键词
@@ -161,40 +161,36 @@ class GzhMessage:
                     dic['create_time'] = msg.create_time.strftime('%Y-%m-%d %H:%M:%S')
                     # 输出文章字典信息
                     # self.logger.debug(str(dic))
-                    try:
-                        # 检测文章标题是否含有关键词
-                        if any([keyword in dic['title'] for keyword in self.keywords]):
-                            dic['factor'] = f'文章"标题"含有关键词'
-                            # self.logger.info(str(dic))
-                            # 向接受群发送信息
-                            self.send_informer(self.informer1, dic)
-                            # 向接受人发送信息
-                            self.send_informer(self.informer2, dic)
-                            # 插入mongo数据库
-                            self.col.update_one({'url': dic['url']}, {'$set': dic}, True)
-                            continue
-                        # 将url传入检测函数
+                    # 检测文章标题是否含有关键词
+                    if any([keyword in dic['title'] for keyword in self.keywords]):
+                        dic['factor'] = f'文章"标题"含有关键词'
+                        # self.logger.info(str(dic))
+                        # 向接受群发送信息
+                        self.send_informer(self.informer1, dic)
+                        # 向接受人发送信息
+                        # self.send_informer(self.informer2, dic)
+                        # 插入mongo数据库
+                        self.col.update_one({'url': dic['url']}, {'$set': dic}, True)
+                        continue
+                    # 将url传入检测函数
+                    else:
                         status, text = self.get_info(dic['url'])
                         # 如果status返回值为200，表示公众号文章含有活动关键字
                         if status == 200:
                             dic['factor'] = text
                             # 向信息接收人发送消息
-                            # self.logger.info(str(dic))
                             self.send_informer(self.informer1, dic)
-                            self.send_informer(self.informer2, dic)
+                            # self.send_informer(self.informer2, dic)
                             self.col.update_one({'url': dic['url']}, {'$set': dic}, True)
                         # status返回值为400，则百度云接口出错
                         elif status == 400:
                             dic['Warning'] = '百度云文字识别模块错误'
                             dic['Error'] = text
-                            # self.bot.file_helper.send(dic)
                             self.logger.error(str(dic))
                         # status返回值为500，则文章没有活动
-                        elif status == 500:
+                        # elif status == 500:
+                        else:
                             self.logger.debug(f'{text}, 信息:{str(dic)}')
-                    except Exception as e:
-                        # 日记输出错误
-                        self.logger.exception()
 
         # 监听测试小号的消息
         @self.bot.register(chats=[Friend])
@@ -206,24 +202,20 @@ class GzhMessage:
                     dic = dict()
                     url = msg.text
                     dic['url'] = url
-                    try:
-                        # 将url传入检测关键字函数
-                        status, text = self.get_info(dic['url'])
-                        # 如果status返回值为200，表示公众号文章含有活动关键字
-                        if status == 200:
-                            self.logger.info(str(dic))
-                            self.bot.file_helper.send(dic)
-                        # status返回值为400，则百度云接口出错
-                        elif status == 400:
-                            dic['Error'] = '百度云文字识别模块错误'
-                            self.logger.error(str(dic))
-                            self.bot.file_helper.send(dic)
-                        # status返回值为500，则文章没有活动
-                        elif status == 500:
-                            self.logger.debug(text)
-                    except Exception as e:
-                        # 日记输出错误
-                        self.logger.exception(dic['create_time'])
+                    # 将url传入检测关键字函数
+                    status, text = self.get_info(dic['url'])
+                    # 如果status返回值为200，表示公众号文章含有活动关键字
+                    if status == 200:
+                        self.logger.info(str(dic))
+                        self.bot.file_helper.send(dic)
+                    # status返回值为400，则百度云接口出错
+                    elif status == 400:
+                        dic['Error'] = '百度云文字识别模块错误'
+                        self.logger.error(str(dic))
+                        self.bot.file_helper.send(dic)
+                    # status返回值为500，则文章没有活动
+                    elif status == 500:
+                        self.logger.debug(text)
 
         # 阻塞线程
         embed()
