@@ -41,15 +41,13 @@ class BaiDuOcr:
 
         i = 0
         try:
-            # print(len(list(results)))
             for result in results:
                 i += 1
                 # 对识别出文字的图片进行判断
                 words_result_num = result.get('words_result_num')
                 if words_result_num != 0 and words_result_num is not None:
-                    # 拼接识别出的文字
-                    # print(result.get('words_result'))
                     a = result.get('words_result')
+                    # 拼接识别出的文字
                     if a:
                         words = ''.join([i.get('words') for i in a])
                         # print(words)
@@ -58,7 +56,7 @@ class BaiDuOcr:
                             if j in words:
                                 text = f'文章第"{i}"张"图片"含有关键词, 关键词为"{j}"'
                                 # 若正确返回200
-                                return 200, text
+                                return 200, text, words
         except Exception as e:
             # 如果百度云文字识别接口发送错误，返回错误信息
             return 400, traceback.format_exc()
@@ -69,11 +67,6 @@ class BaiDuOcr:
 
 
 if __name__ == '__main__':
-    # bd = BaiDuOcr()
-    # url = 'https://mmbiz.qpic.cn/mmbiz_jpg/1rUf44mj1kcZYJhuCFuic9U2Lz2p9aw9kC9JSK11FFw1kibE55sU0beEsdzV7E13fPdt0dq7SgXLGbIygicU9xGdw/640?wx_fmt=jpeg'
-    # url2 = 'https://mmbiz.qpic.cn/mmbiz_jpg/ow6przZuPIFMYfTUiaOTs394Qb4xsmbAEfvWYg6GZiaJyOIpetGx0U4TIDnic7qCKsle0L56ibglKoDJCZpo1OVnEw/640?wx_fmt=jpeg'
-    # url3 = 'https://mmbiz.qpic.cn/mmbiz_png/ebKKHTzPtGf0XKpYyWKOAuSibLVVYdsvcXSjr6IVSAqhatckZmJ7f0FX3ucHiaKjpULibE0yGxy5WWZmXY'
-    # urls = [url, url2, url3]
     url = 'https://mp.weixin.qq.com/s?__biz=MzIxMTM0OTQ5NA==&mid=2247491225&idx=2&sn=bcd083e5b13bc32984006cf0cf483fcb&chksm=9757e400a0206d160306e1b674089a1b8f5ccbd8e91468b0348290adc4aeda2a48d46b954e83&scene=0&xtrack=1#rd'
     response = requests.get(url, timeout=10)
     html = fromstring(response.text)

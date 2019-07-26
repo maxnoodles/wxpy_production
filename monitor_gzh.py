@@ -1,17 +1,21 @@
+#coding:utf-8
 import time
 import threading
+import os
+
 from wxpy import *
 import requests
 import pymongo
-import os
-from baidu_ocr import BaiDuOcr
 from faker import Faker
-import email_test
 from lxml.html import fromstring
 import logging
 import yaml
 import logging.config
+
+import email_test
 from setting import *
+from baidu_ocr import BaiDuOcr
+from until import regex_extract
 
 
 class GzhMessage:
@@ -20,11 +24,18 @@ class GzhMessage:
         # 初始化wxpy Bot对象
         self.qr_flag = False
         self.start_time = time.time()
-        self.bot = Bot(cache_path=True, qr_callback=self.qr_callback)
+        self.bot = Bot(qr_callback=self.qr_callback)
         self.bot.enable_puid('wxpy_puid.pkl')
         # 连接数据库
-        self.client = pymongo.MongoClient(host='127.0.0.1')
-        self.col = self.client['D88']['gzh_message']
+        self.client = pymongo.MongoClient(host=MONGO_HOST,
+                                          port=MONGO_PORT,
+                                          # username=MONGO_USERNAME,
+                                          # password=MONGO_PASSWORD,
+                                          # authMechanism='SCRAM-SHA-1',
+                                          # authSource=MONGO_DB
+                                          )
+
+        self.col = self.client[MONGO_DB][MONGO_COLLECTION]
         # 自定义请求头
         self.headers = {
             'Connection': 'keep-alive',
@@ -35,15 +46,19 @@ class GzhMessage:
             'Accept-Language': 'zh-CN,zh;q=0.9',
         }
         # 信息接收群
-        self.informer1 = self.bot.groups().search('洗稿')
+        self.informer_one = self.bot.groups().search('洗稿群')
         # 信息接收人
-        # self.informer2 = self.bot.friends().search('noodles')
+        self.informer_two = self.bot.friends().search('洗稿2群')
+
         # 测试小号
-        self.test_user = self.bot.friends().search('max')
+        # self.test_user = self.bot.friends().search('max')
+
         # 关键词
         self.keywords = KEYWORDS
         # 加载日记配置文件
         self.logger = self.setup_logging()
+        # 分发标识
+        self.flag = 0
 
     def qr_callback(self, **kwargs):
         """获取二维码后将其写入文件再通过邮件发送到登录账号"""
@@ -54,28 +69,32 @@ class GzhMessage:
                 fp.write(kwargs['qrcode'])
             email_test.send_qr('QR.png')
             self.qr_flag = True
-        if send_time - self.start_time > 300:
+        if send_time - self.start_time > 120:
             self.start_time = time.time()
             self.qr_flag = False
 
-    def setup_logging(self, default_path='yaml.ini', default_level=logging.INFO):
+    def setup_logging(self, default_path='config.yaml', default_level=logging.INFO):
         """
         初始化日记对象
         :param default_path: logging配置文件，采用yaml格式
         :param default_level: logging默认等级
         :return: logger对象
         """
-        path = default_path
+        # 判断日记文件夹是否存在
+        log_dir = os.path.dirname(__file__) + '/logs'
+        if not os.path.exists(log_dir):
+            os.mkdir(log_dir)
+
         # 如果日记配置文件存在，则加载配置，不存在则配置一个基础logging
-        if os.path.exists(path):
-            with open(path, 'r', encoding='utf-8') as f:
+        if os.path.exists(default_path):
+            with open(default_path, 'r', encoding='utf-8') as f:
                 # 读取yaml配置文件
                 config = yaml.full_load(f)
                 logging.config.dictConfig(config)
         else:
             logging.basicConfig(level=default_level)
-        # 使用日记子类'main.core'
-        logger = logging.getLogger('main.core')
+        # 使用日记子类'gzh.core'
+        logger = logging.getLogger('gzh.core')
         # 创建一个微信日志处理器
         wechat_handler = WeChatLoggingHandler(receiver=self.bot)
         wechat_handler.setLevel(logging.WARN)
@@ -92,28 +111,29 @@ class GzhMessage:
         response = requests.get(url, headers=self.headers, timeout=10)
         html = fromstring(response.text)
         # 匹配文字
-        long_text = html.xpath('//div[@id="js_content"]//span//text()')
+        content_text = html.xpath('//div[@id="js_content"]//span//text()|//div[@id="js_content"]//strong//text()')
         # 匹配url连接
         img_urls = html.xpath('//div[@id="js_content"]//img/@data-src')
         # 将匹配的文章连接成长文本
-        long_text = ''.join(long_text)
+        long_text = ''.join(content_text)
+        resp_text = response.text
 
         # 判断文章文本中有活动关键字存在，有则直接返回状态码和关键词信息
         for keyword in self.keywords:
             if keyword in long_text:
                 text = f'文章"文本"含有关键词, 关键词为"{keyword}"'
-                return 200, text
+                time_list, result = regex_extract(long_text, resp_text)
+                return 200, text, time_list, result
 
         # 若没有关键字，调用百度通用文字ocr接口下载图片并识别
-        # print(f'无关键字，开始请求图片,共{len(img_urls)}张')
         # 若图片识别结果中有活动关键字，返回status=200, pic_text='文章第{i}张"图片"含有关键词, 关键词为{j}
         # 若图片识别结果无活动，返回status=500, None
         # 若接口出错，返回status=400, pic_text=traceback.format_exc()
         if len(img_urls):
-            # self.logger.debug(f'无关键字，开始请求图片,共{len(img_urls)}张')
-            status, pic_text = BaiDuOcr().pic_ocr(img_urls)
+            status, pic_text, *word = BaiDuOcr().pic_ocr(img_urls)
             if status == 200:
-                return status, pic_text
+                time_list, result = regex_extract(word[0], word[0])
+                return status, pic_text, time_list, result
             elif status == 500:
                 return status, pic_text
             elif status == 400:
@@ -133,11 +153,21 @@ class GzhMessage:
         if len(informer):
             try:
                 ensure_one(informer).send(str(msg))
-                self.logger.info(f'信息成功向"{informer}"发送成功,信息:{str(msg)}')
+                self.logger.debug(f'信息成功向"{informer}"发送成功,信息:{str(msg)}')
             except ResponseError:
                 self.logger.exception(f'发送失败或者接收人"{informer}"无法接收信息, 信息:{str(msg)}')
         else:
             self.logger.warning(f'找不到"{informer}"信息接收人, 信息:{str(msg)}!')
+
+    def distribute_send(self, dic):
+
+        # 向不同的群分发消息, 记得把新建的群加入到通讯录！！！
+        if self.flag == 0:
+            self.send_informer(self.informer_one, dic)
+            self.flag += 1
+        else:
+            self.send_informer(self.informer_two, dic)
+            self.flag = 0
 
     def run(self):
         # 注册公众号消息
@@ -153,71 +183,33 @@ class GzhMessage:
                     dic['name'] = msg.sender.name
                     # 获取文章标题
                     dic['title'] = article.title
-                    # 获取文章简介
-                    dic['summary'] = article.summary
                     # 获取文章Url
                     dic['url'] = article.url
                     # 获取创建时间
                     dic['create_time'] = msg.create_time.strftime('%Y-%m-%d %H:%M:%S')
-                    # 输出文章字典信息
-                    # self.logger.debug(str(dic))
-                    # 检测文章标题是否含有关键词
-                    if any([keyword in dic['title'] for keyword in self.keywords]):
-                        dic['factor'] = f'文章"标题"含有关键词'
-                        # self.logger.info(str(dic))
-                        # 向接受群发送信息
-                        self.send_informer(self.informer1, dic)
-                        # 向接受人发送信息
-                        # self.send_informer(self.informer2, dic)
-                        # 插入mongo数据库
-                        self.col.update_one({'url': dic['url']}, {'$set': dic}, True)
-                        continue
+                    print(dic)
                     # 将url传入检测函数
-                    else:
-                        status, text = self.get_info(dic['url'])
-                        # 如果status返回值为200，表示公众号文章含有活动关键字
-                        if status == 200:
-                            dic['factor'] = text
-                            # 向信息接收人发送消息
-                            self.send_informer(self.informer1, dic)
-                            # self.send_informer(self.informer2, dic)
-                            self.col.update_one({'url': dic['url']}, {'$set': dic}, True)
-                        # status返回值为400，则百度云接口出错
-                        elif status == 400:
-                            dic['Warning'] = '百度云文字识别模块错误'
-                            dic['Error'] = text
-                            self.logger.error(str(dic))
-                        # status返回值为500，则文章没有活动
-                        # elif status == 500:
-                        else:
-                            self.logger.debug(f'{text}, 信息:{str(dic)}')
-
-        # 监听测试小号的消息
-        @self.bot.register(chats=[Friend])
-        def cs_msg(msg):
-            if self.test_user is not []:
-                test_user = self.test_user[0]
-                if msg.sender.puid == test_user.puid:
-                    self.logger.debug(msg)
-                    dic = dict()
-                    url = msg.text
-                    dic['url'] = url
-                    # 将url传入检测关键字函数
-                    status, text = self.get_info(dic['url'])
+                    status, text, *result = self.get_info(dic['url'])
+                    # self.logger.info(status, text, *result)
                     # 如果status返回值为200，表示公众号文章含有活动关键字
                     if status == 200:
-                        self.logger.info(str(dic))
-                        self.bot.file_helper.send(dic)
+                        dic['factor'] = text
+                        # 分发消息
+                        if len(result):
+                            dic['time_list'] = result[0]
+                            dic['result'] = result[1]
+
+                        self.logger.debug(f'{text}, 信息:{str(dic)}')
+                        self.col.update_one({'url': dic['url']}, {'$set': dic}, True)
                     # status返回值为400，则百度云接口出错
                     elif status == 400:
-                        dic['Error'] = '百度云文字识别模块错误'
-                        self.logger.error(str(dic))
-                        self.bot.file_helper.send(dic)
-                    # status返回值为500，则文章没有活动
-                    elif status == 500:
-                        self.logger.debug(text)
+                        dic['Warning'] = '百度云文字识别模块错误'
+                        dic['Error'] = text
+                        self.logger.warning(f'{dic["Warning"]}, 信息:{str(dic)}')
 
-        # 阻塞线程
+                    else:
+                        self.logger.info(f'{text}, 信息:{str(dic)}')
+
         embed()
 
 
@@ -233,7 +225,7 @@ if __name__ == '__main__':
 
     while True:
         if not listen_thread.is_alive() or listen_thread is None:
-            content = f'公众号监听线程死亡'
+            content = f'公众号监听线程死亡, 请重新登录'
             email_test.error_alarm(content)
             print(content)
             break

@@ -43,7 +43,6 @@ def send_qr(fp):
 
 
 if __name__ == '__main__':
-
     content = "二维码测试"     # 内容
     error_alarm(content)
     send_qr('QR.png')
