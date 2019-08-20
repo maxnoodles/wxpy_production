@@ -19,6 +19,6 @@ MONGO_HOST = '192.168.2.218'
 MONGO_PORT = 27017
 # MONGO_USERNAME = xxxxx
 # MONGO_PASSWORD = xxxxx
-# MONGO_DB = 'WechatD88'
+# MONGO_DB = 'xxxxx'
 MONGO_DB = 'd88_offline'
 MONGO_COLLECTION = 'gzh_message'
