@@ -4,21 +4,21 @@ KEYWORDS = ['发售', '折', '特卖', '特惠', '优惠', '免费', '立省', '
 
 
 
-APP_ID = '16167904'
-API_KEY = 'hdt1cGSEvQiG28hphMXnjeSQ'
-SECRET_KEY = 'suHgcApxojkN6H4oIGRGvSuFXXqwFFdt'
+APP_ID = 'xxx'
+API_KEY = 'xxx'
+SECRET_KEY = 'xxx'
 
-MSG_from = '924461845@qq.com'   # 发送方邮箱
-MSG_to = '309600517@qq.com'     # 收件人邮箱
-# MSG_to = '924461845@qq.com'     # 测试收件人邮箱
-MSG_PW = 'ivgklabsopzqbfid'    # 填入发送方邮箱的授权码
+MSG_from = 'xxx@qq.com'   # 发送方邮箱
+MSG_to = 'xxx@qq.com'     # 收件人邮箱
+# MSG_to = 'xx@qq.com'     # 测试收件人邮箱
+MSG_PW = 'xxx'    # 填入发送方邮箱的授权码
 
-# MONGO_HOST = '47.107.224.21'
-# MONGO_PORT = 27000
-MONGO_HOST = '192.168.2.218'
-MONGO_PORT = 27017
+# MONGO_HOST = 'xxx'
+# MONGO_PORT = xxx
+MONGO_HOST = 'xxx'
+MONGO_PORT = xxx
 # MONGO_USERNAME = xxxxx
 # MONGO_PASSWORD = xxxxx
 # MONGO_DB = 'xxxxx'
-MONGO_DB = 'd88_offline'
-MONGO_COLLECTION = 'gzh_message'
+MONGO_DB = 'xxx'
+MONGO_COLLECTION = 'xxx'
