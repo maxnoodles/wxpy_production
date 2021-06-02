@@ -15,5 +15,5 @@ PyYAML==5.1
 requests==2.21.0
 six==1.12.0
 text-unidecode==1.2
-urllib3==1.24.3
+urllib3==1.26.5
 wxpy==0.3.9.8
